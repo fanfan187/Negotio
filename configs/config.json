@@ -1,0 +1,19 @@
+{
+  "network": {
+    "udp_port": 5000,
+    "unix_socket_path": "/tmp/negotiation.sock"
+  },
+  "negotiation": {
+    "max_strategies": 4096,
+    "hash_algorithm": "SHA256",
+    "timeout_ms": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "output_file": "logs/app.log"
+  },
+  "performance": {
+    "monitor_interval_ms": 1000,
+    "max_memory_mb": 500
+  }
+}

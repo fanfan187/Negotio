@@ -1,0 +1,3 @@
+/tmp/tmp.I25XFFH9BL/Negotio/cmake-build-debug-remote-linux/CMakeFiles/Negotio.dir
+/tmp/tmp.I25XFFH9BL/Negotio/cmake-build-debug-remote-linux/CMakeFiles/edit_cache.dir
+/tmp/tmp.I25XFFH9BL/Negotio/cmake-build-debug-remote-linux/CMakeFiles/rebuild_cache.dir

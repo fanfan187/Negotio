@@ -1,0 +1,9 @@
+# ninja log v6
+24	132	7640745323879961	CMakeFiles/Negotio.dir/src/monitor/monitor.cpp.obj	308941247356878
+15	141	7640745323787366	CMakeFiles/Negotio.dir/src/unixsocket/unixsocket.cpp.obj	bcd9896c47aa9de0
+11	139	7640745323744831	CMakeFiles/Negotio.dir/src/udp/udp.cpp.obj	dd7f66510323b2cd
+19	140	7640745323827238	CMakeFiles/Negotio.dir/src/negotiate/negotiate.cpp.obj	90e14f6398a908c9
+35	146	7640745323984438	CMakeFiles/Negotio.dir/tests/performance_test.cpp.obj	9f7774f3523ce7d7
+29	140	7640745323929982	CMakeFiles/Negotio.dir/tests/unit_test.cpp.obj	7821296dd555f3d0
+4	683	7640745323675446	CMakeFiles/Negotio.dir/src/main.cpp.obj	bc6d780e4ba6b8e7
+685	895	7640745330482428	Negotio.exe	60113f61ca76ca11
