@@ -14,18 +14,44 @@
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
+#include <openssl/evp.h>
+#include <openssl/types.h>
 
 #include "common.h"
 
 // 内部静态函数: 对任意数据缓冲区计算 SHA256
-static std::vector<uint8_t> SHA256HashBytes(const void *data,size_t length) {
+static std::vector<uint8_t> SHA256HashBytes(const void *data, const size_t length) {
     std::vector<uint8_t> hashValue(SHA256_DIGEST_LENGTH);  // SHA256 输出长度32字节
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
-    // 调用 OpenSSL 更新哈希计算
-    SHA256_Update(&ctx, data, length);
-    // 完成哈希计算并将结果写入 hashValue
-    SHA256_Final(hashValue.data(), &ctx);
+
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    // 创建 EVC_MD_CTX 上下文
+    if (const EVP_MD_CTX* md_ctx_st = EVP_MD_CTX_new(); !md_ctx_st) {
+        // 创建失败，返回空向量
+        return {};
+    }
+
+    // 初始化上下文为 SHA256
+    if (EVP_DigestInit(ctx, EVP_sha256()) != 1) {
+        // 初始化失败，释放上下文并返回空向量
+        EVP_MD_CTX_free(ctx);
+        return {};
+    }
+
+    // 更新数据
+    if (EVP_DigestUpdate(ctx, data, length) != 1) {
+        // 更新失败，释放上下文并返回空向量
+        EVP_MD_CTX_free(ctx);
+        return {};
+    }
+
+    unsigned int hashLength = 0;
+    // 计算哈希值,将结果写入 hashValue
+    if (EVP_DigestFinal(ctx, hashValue.data(), &hashLength) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return {};
+    }
+
+    EVP_MD_CTX_free(ctx);
     return hashValue;
 }
 

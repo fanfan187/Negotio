@@ -29,15 +29,15 @@ namespace negotio {
         }
     }
 
-    void Monitor::recordNegotiation(uint32_t durationMs, bool success) {
-        totalNegotiations++;
+    void Monitor::recordNegotiation(const uint32_t durationMs, const bool success) {
+        ++totalNegotiations;
         if (success) {
-            successfulNegotiations++;
+            ++successfulNegotiations;
             totalLatencyMs += durationMs;
         }
     }
 
-    void Monitor::monitorLoop() {
+    void Monitor::monitorLoop() const {
         using namespace std::chrono_literals;
         while (running) {
             std::this_thread::sleep_for(1s);

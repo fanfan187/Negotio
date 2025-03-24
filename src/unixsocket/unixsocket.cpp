@@ -59,7 +59,7 @@ bool UnixSocketServer::init(const std::string &path) {
     return true;
 }
 
-void UnixSocketServer::setCommandHandler(CommandHandler handler) {
+void UnixSocketServer::setCommandHandler(const CommandHandler &handler) {
     commandHandler = handler;
 }
 

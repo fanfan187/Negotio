@@ -44,7 +44,7 @@ int main() {
 
     // 从配置文件中读取参数（这里仅提取必要的配置项，后续可扩展）
     uint16_t udpPort = config["network"]["udp_port"].get<uint16_t>();
-    std::string unixSocketPath = config["network"]["unix_socket_path"].get<std::string>();
+    auto unixSocketPath = config["network"]["unix_socket_path"].get<std::string>();
     // 协商参数（例如超时时间、策略数量）可以根据需要读取
     uint32_t negotiationTimeoutMs = config["negotiation"]["timeout_ms"].get<uint32_t>();
     uint32_t maxStrategies = config["negotiation"]["max_strategies"].get<uint32_t>();
@@ -77,12 +77,11 @@ int main() {
         // 设置命令处理回调，解析 JSON 格式命令（例如添加、删除策略、刷新协商）
         unixServer.setCommandHandler([&](const std::string &cmd) {
             std::cout << "收到 Unix 命令: " << cmd << std::endl;
-            // 示例：简单解析命令（这里假设命令格式为 {"action": "add", "policy": { ... }}）
             try {
                 auto j = json::parse(cmd);
-                std::string action = j["action"].get<std::string>();
+                auto action = j["action"].get<std::string>();
                 if (action == "add") {
-                    negotio::PolicyConfig config = j["policy"].get<negotio::PolicyConfig>();
+                    auto config = j["policy"].get<negotio::PolicyConfig>();
                     if (policyManager.addPolicy(config)) {
                         std::cout << "策略添加成功，策略ID: " << config.policy_id << std::endl;
                         // 可触发协商流程：例如 negotiator.startNegotiation(config.policy_id, peerAddr);

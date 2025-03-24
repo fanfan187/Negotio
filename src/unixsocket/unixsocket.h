@@ -37,7 +37,7 @@ namespace negotio {
          * @brief 设置命令处理回调函数
          * @param handler 命令处理回调
          */
-        void setCommandHandler(CommandHandler handler);
+        void setCommandHandler(const CommandHandler &handler);
 
         /**
          * @brief 启动服务（阻塞方式接受连接并处理命令）

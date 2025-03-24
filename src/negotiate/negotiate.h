@@ -44,7 +44,7 @@ namespace negotio {
 
         ~Negotiator();
 
-        void setMonitor(class Monitor *m);
+        void setMonitor(Monitor *m);
 
         /**
          * @brief 发起协商流程（发起者角色）

@@ -79,7 +79,7 @@ ErrorCode Negotiator::startNegotiation(uint32_t policy_id, const sockaddr_in &pe
 }
 
 ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockaddr_in &addr) {
-    uint32_t policy_id = packet.header.sequence;
+    const uint32_t policy_id = packet.header.sequence;
     if (packet.header.type == PacketType::RANDOM1) {
         // 对方发起协商，我作为响应者
         NegotiationSession session;
@@ -120,10 +120,10 @@ ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockad
         // 上层应调用 UDP 模块发送 respPacket 到 addr
         return ErrorCode::SUCCESS;
     }
-    else if (packet.header.type == PacketType::RANDOM2) {
+    if (packet.header.type == PacketType::RANDOM2) {
         // 发起者收到 RANDOM2 包，完成计算并发送 CONFIRM 包
         std::lock_guard<std::mutex> lock(sessionsMutex);
-        auto it = sessions.find(policy_id);
+        const auto it = sessions.find(policy_id);
         if (it == sessions.end()) {
             return ErrorCode::INVALID_PARAM;
         }
@@ -145,12 +145,12 @@ ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockad
         confirmPacket.header.type = PacketType::CONFIRM;
         confirmPacket.header.sequence = policy_id;
         confirmPacket.header.timestamp = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                             std::chrono::steady_clock::now().time_since_epoch()).count());
+            std::chrono::steady_clock::now().time_since_epoch()).count());
         std::cout << "发起者：收到 RANDOM2 包, 发送 CONFIRM 包, 策略ID: " << policy_id << std::endl;
         // 上层应调用 UDP 模块发送 confirmPacket 到 addr
         return ErrorCode::SUCCESS;
     }
-    else if (packet.header.type == PacketType::CONFIRM) {
+    if (packet.header.type == PacketType::CONFIRM) {
         // 响应者收到 CONFIRM 包，协商成功
         std::lock_guard<std::mutex> lock(sessionsMutex);
         const auto it = sessions.find(policy_id);
@@ -159,8 +159,8 @@ ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockad
         }
         NegotiationSession &session = it->second;
         session.state = NegotiateState::DONE;
-        auto now = std::chrono::steady_clock::now();
-        uint32_t duration = static_cast<uint32_t>(
+        const auto now = std::chrono::steady_clock::now();
+        const uint32_t duration = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(now - session.startTime).count());
         if (monitor) {
             monitor->recordNegotiation(duration, true);
@@ -172,9 +172,8 @@ ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockad
 }
 
 std::optional<NegotiationSession> Negotiator::getSession(uint32_t policy_id) {
-    std::lock_guard<std::mutex> lock(sessionsMutex);
-    const auto it = sessions.find(policy_id);
-    if (it != sessions.end()) {
+    std::lock_guard lock(sessionsMutex);
+    if (const auto it = sessions.find(policy_id); it != sessions.end()) {
         return it->second;
     }
     return std::nullopt;

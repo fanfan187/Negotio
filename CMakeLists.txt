@@ -20,7 +20,7 @@ else()
 endif()
 
 add_executable(Negotio
-        src/main.cpp
+        src/NegotioApplication.cpp
         src/udp/udp.cpp
         src/udp/udp.h
         src/unixsocket/unixsocket.cpp
