@@ -1,5 +1,0 @@
-/usr/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" -S /tmp/tmp.I25XFFH9BL/Negotio -B /tmp/tmp.I25XFFH9BL/Negotio/cmake-build-debug-remote-linux
--- OpenSSL found: /usr/lib/x86_64-linux-gnu/libssl.so;/usr/lib/x86_64-linux-gnu/libcrypto.so
--- Configuring done
--- Generating done
--- Build files have been written to: /tmp/tmp.I25XFFH9BL/Negotio/cmake-build-debug-remote-linux

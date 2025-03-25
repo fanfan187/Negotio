@@ -29,8 +29,6 @@ add_executable(Negotio
         src/negotiate/negotiate.h
         src/monitor/monitor.cpp
         src/monitor/monitor.h
-        tests/unit_test.cpp
-        tests/performance_test.cpp
         include/common.h
         src/hash/hash.cpp
         src/hash/hash.h
@@ -38,6 +36,29 @@ add_executable(Negotio
         include/json_support.h
 )
 
+add_executable(NegotioPerformanceTest
+        tests/performance_test.cpp
+        tests/unit_test.cpp
+        src/udp/udp.cpp
+        src/unixsocket/unixsocket.cpp
+        src/negotiate/negotiate.cpp
+        src/hash/hash.cpp
+        src/monitor/monitor.cpp
+        src/policy/policy.cpp
+)
+
 target_link_libraries(Negotio PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 target_include_directories(Negotio PRIVATE ${CMAKE_SOURCE_DIR}/external)
+target_link_libraries(Negotio PRIVATE OpenSSL::SSL OpenSSL::Crypto pthread)
+target_link_libraries(NegotioPerformanceTest PRIVATE OpenSSL::SSL OpenSSL::Crypto pthread)
+
+
+
+
+
+
+
+
+
+
 

@@ -15,6 +15,18 @@
 #include <string>
 #include <vector>
 
+// 调试开关: 0:关闭调试输出,1:开启
+#ifndef ENABLE_DEBUG
+#define ENABLE_DEBUG 0
+#endif
+
+#if ENABLE_DEBUG
+#include <iostream>
+#define DEBUG_LOG(x) std::cout << x << std::endl;
+#else
+#define DEBUG_LOG(x) do {} while (0)
+#endif
+
 namespace negotio {
     // 错误码定义
     enum class ErrorCode {
@@ -70,7 +82,7 @@ namespace negotio {
     // 常量定义
     constexpr uint32_t MAGIC_NUMBER = 0xE45474F; // 'NEDO'
     constexpr uint32_t MAX_POLICY_SIZE = 1024; // 最大负载大小
-    constexpr uint32_t MAX_POLICY_COUNT = 10; // 最大策略数量
+    constexpr uint32_t MAX_POLICY_COUNT = 4096; // 最大策略数量
     constexpr uint32_t DEFAULT_TIMEOUT_MS = 1000; // 默认超时时间
     constexpr uint32_t DEFAULT_RETRY_TIMES = 3; // 默认重试次数
     constexpr uint32_t RANDOM_NUMBER = 32; // 随机数大小(字节)

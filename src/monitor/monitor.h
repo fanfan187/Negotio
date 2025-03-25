@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <thread>
+#include <fstream>
 
 namespace negotio {
 
@@ -38,6 +39,8 @@ namespace negotio {
          * @param success 成功为 true，否则 false
          */
         void recordNegotiation(uint32_t durationMs, bool success);
+
+        std::ofstream logFile;
 
     private:
         std::atomic<bool> running;

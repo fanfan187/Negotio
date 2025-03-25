@@ -1,12 +1,8 @@
 /**
  * 实现 udp 模块
  *
- * 实现了 UDP 数据包的发送与接收功能。
- *
- * 协商数据包采用自定义序列化格式，
- * 用于交换随机数和确认包。
- *
- * 性能要求：协商延迟低于100ms。
+ * 采用线程局部缓冲区复用机制减少内存频繁分配，
+ * 同时保持非阻塞模式及 select 超时处理，确保低延迟。
  *
  * @author fanfan187
  * @version v1.0.0
@@ -21,9 +17,9 @@
 #include <cstring>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <linux/udp.h>
 
 namespace negotio {
-
     UdpSocket::UdpSocket() : sockfd(-1) {
     }
 
@@ -35,7 +31,7 @@ namespace negotio {
 
     ErrorCode UdpSocket::init(uint16_t port) {
         sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sockfd < 0) {
+        if (sockfd == -1) {
             return ErrorCode::SOCKET_ERROR;
         }
 
@@ -47,7 +43,7 @@ namespace negotio {
         }
 
         // 设置 SO_REUSEADDR 选项
-        int opt = 1;
+        constexpr int opt = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
             close(sockfd);
             return ErrorCode::SOCKET_ERROR;
@@ -63,17 +59,28 @@ namespace negotio {
             close(sockfd);
             return ErrorCode::SOCKET_ERROR;
         }
+        //
+        // // 增加发送和增加缓冲区大小
+        // int sendBufSize = 1024 * 1024;  // 1MB buffer
+        // int recvBufSize = 1024 * 1024;
+        // setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sendBufSize, sizeof(sendBufSize));
+        // setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &recvBufSize, sizeof(recvBufSize));
+        //
+        // // 开启 UDP_CORK 选项减小包发送
+        // int cork = 1;
+        // setsockopt(sockfd, IPPROTO_UDP, UDP_CORK, &cork, sizeof(cork));
 
         return ErrorCode::SUCCESS;
     }
 
     ErrorCode UdpSocket::sendPacket(const NegotiationPacket &packet, sockaddr_in &addr) {
         std::lock_guard lock(sendMutex);
-        std::vector<uint8_t> buffer;
-        if (const ssize_t bytes = serializePacket(packet, buffer); bytes < 0) {
+        // 使用线程局部的缓冲区,避免频繁分配
+        static thread_local std::vector<uint8_t> buffer;
+        buffer.clear();
+        if (const ssize_t bytes = serializePacket(packet, buffer); bytes == -1) {
             return ErrorCode::INVALID_PARAM;
         }
-
         if (const ssize_t sent = sendto(sockfd, buffer.data(), buffer.size(), 0,
                                         reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)); sent < 0) {
             return ErrorCode::SOCKET_ERROR;
@@ -90,8 +97,7 @@ namespace negotio {
         tv.tv_sec = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-        int ret = select(sockfd + 1, &readfds, nullptr, nullptr, &tv);
-        if (ret < 0) {
+        if (const int ret = select(sockfd + 1, &readfds, nullptr, nullptr, &tv); ret < 0) {
             return ErrorCode::SOCKET_ERROR;
         } else if (ret == 0) {
             return ErrorCode::TIMEOUT;
@@ -101,7 +107,7 @@ namespace negotio {
         socklen_t addrLen = sizeof(addr);
         const ssize_t received = recvfrom(sockfd, buffer.data(), buffer.size(), 0,
                                           reinterpret_cast<struct sockaddr *>(&addr), &addrLen);
-        if (received < 0) {
+        if (received == -1) {
             return ErrorCode::SOCKET_ERROR;
         }
         buffer.resize(received);
@@ -150,5 +156,4 @@ namespace negotio {
         }
         return static_cast<ssize_t>(buffer.size());
     }
-
 } // namespace negotio

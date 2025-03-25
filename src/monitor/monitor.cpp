@@ -20,6 +20,12 @@ namespace negotio {
     void Monitor::start() {
         running = true;
         monitorThread = std::thread(&Monitor::monitorLoop, this);
+
+        logFile.open("monitor_log.txt", std::ios::app);
+        if (logFile.is_open()) {
+            logFile << "监控统计:总协商数:" << totalNegotiations << ", 成功协商数:" <<
+                successfulNegotiations << ", 平均延迟:" << totalLatencyMs / successfulNegotiations << " ms" << std::endl;
+        }
     }
 
     void Monitor::stop() {
@@ -53,6 +59,4 @@ namespace negotio {
     }
 
 } // namespace negotio
-
-
 
