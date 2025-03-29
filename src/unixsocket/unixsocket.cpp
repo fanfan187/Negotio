@@ -92,7 +92,7 @@ namespace negotio {
         while (running) {
             constexpr int kMaxEvents = 10;
             epoll_event events[kMaxEvents];
-            int nfds = epoll_wait(epollFd, events, kMaxEvents, 1000);
+            int nfds = epoll_wait(epollFd, events, kMaxEvents, 0);
             if (nfds == -1) {
                 if (errno == EINTR)
                     continue;

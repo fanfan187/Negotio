@@ -83,7 +83,7 @@ namespace negotio {
     constexpr uint32_t MAGIC_NUMBER = 0xE45474F; // 'NEDO'
     constexpr uint32_t MAX_POLICY_SIZE = 1024; // 最大负载大小
     constexpr uint32_t MAX_POLICY_COUNT = 4096; // 最大策略数量
-    constexpr uint32_t DEFAULT_TIMEOUT_MS = 1000; // 默认超时时间
+    constexpr uint32_t DEFAULT_TIMEOUT_MS = 100; // 默认超时时间
     constexpr uint32_t DEFAULT_RETRY_TIMES = 3; // 默认重试次数
     constexpr uint32_t RANDOM_NUMBER = 32; // 随机数大小(字节)
     constexpr uint32_t KEY_SIZE = 32; // 密钥大小(字节)

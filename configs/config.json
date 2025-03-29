@@ -13,7 +13,7 @@
     "output_file": "logs/app.log"
   },
   "performance": {
-    "monitor_interval_ms": 1000,
+    "monitor_interval_ms": 10,
     "max_memory_mb": 500
   }
 }

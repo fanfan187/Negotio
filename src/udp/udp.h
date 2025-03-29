@@ -61,10 +61,10 @@ namespace negotio {
          * @brief 接收数据包
          * @param packet 输出参数，接到的数据包
          * @param addr 输出参数，发送方地址
-         * @param timeout_ms 超时时间，默认 1000 毫秒
+         * @param timeout_ms 超时时间，默认 10 毫秒
          * @return 成功返回 ErrorCode::SUCCESS, 否则返回相应错误代码
          */
-        ErrorCode recvPacket(NegotiationPacket &packet, sockaddr_in &addr, int timeout_ms = 1000) const;
+        ErrorCode recvPacket(NegotiationPacket &packet, sockaddr_in &addr, int timeout_ms = 10) const;
 
         /**
          * @brief 获取套接字文件描述符

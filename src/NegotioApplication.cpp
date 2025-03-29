@@ -18,6 +18,8 @@
 #include "nlohmann/json.hpp"
 #include <sys/epoll.h>
 #include <cerrno>
+#include <arpa/inet.h>
+
 #include "json_support.h"
 #include "common.h"
 
@@ -25,6 +27,22 @@ using json = nlohmann::json;
 using namespace std::chrono;
 
 std::atomic<bool> running(true);
+
+#define TRACE_BLOCK(name) TraceBlock __trace_block__(name)
+
+struct TraceBlock {
+    std::string name;
+    std::chrono::steady_clock::time_point start;
+
+    explicit TraceBlock(const std::string &n) : name(n), start(std::chrono::steady_clock::now()) {
+    }
+
+    ~TraceBlock() {
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        std::cout << "[TRACE] " << name << " 耗时: " << duration << " us" << std::endl;
+    }
+};
 
 void signalHandler(int signum) {
     running = false;
@@ -62,12 +80,14 @@ int main() {
     uint16_t udpPort = config["network"]["udp_port"].get<uint16_t>();
     std::string unixSocketPath = config["network"]["unix_socket_path"].get<std::string>();
     uint32_t negotiationTimeoutMs = config["negotiation"]["timeout_ms"].get<uint32_t>();
+    const int epollTimeoutMs = 10;
 
     negotio::UdpSocket udpSocket;
     if (udpSocket.init(udpPort) != negotio::ErrorCode::SUCCESS) {
         std::cerr << "UDP 模块初始化失败" << std::endl;
         return 1;
     }
+
 #ifdef DEBUG
     std::cout << "UDP 模块初始化成功，端口: " << udpPort << std::endl;
 #endif
@@ -77,6 +97,7 @@ int main() {
         std::cerr << "Unix Socket 模块初始化失败" << std::endl;
         return 1;
     }
+
 #ifdef DEBUG
     std::cout << "Unix Socket 模块初始化成功，路径: " << unixSocketPath << std::endl;
 #endif
@@ -87,12 +108,17 @@ int main() {
     negotiator.setMonitor(&monitor);
     monitor.start();
 
+    // 设置 UDP 发送器，便于 Negotiator 内部发送 CONFIRM 包
+    negotiator.setUdpSender([&udpSocket](const negotio::NegotiationPacket &pkt, const sockaddr_in &addr) {
+        udpSocket.sendPacket(pkt, const_cast<sockaddr_in &>(addr));
+    });
+
     // 启动 Unix 域套接字服务线程
-    std::thread unixThread([&unixServer, &policyManager]() {
+    std::thread unixThread([&unixServer, &policyManager, &negotiator]() {
         setThreadAffinity(0);
         unixServer.setCommandHandler([&](const std::string &cmd) {
 #ifdef DEBUG
-    std::cout << "收到 Unix 命令: " << cmd << std::endl;
+            std::cout << "收到 Unix 命令: " << cmd << std::endl;
 #endif
             try {
                 auto j = json::parse(cmd);
@@ -101,11 +127,18 @@ int main() {
                     auto policy_config = j["policy"].get<negotio::PolicyConfig>();
                     bool success = policyManager.addPolicy(policy_config);
 #ifdef DEBUG
-            DEBUG_LOG("策略" << (success ? "添加成功" : "添加失败")
-                      << "，策略ID: " << policy_config.policy_id);
+                    DEBUG_LOG("策略" << (success ? "添加成功" : "添加失败")
+                        << "，策略ID: " << policy_config.policy_id);
 #else
                     (void) success; // 引用 success 以避免未使用警告
 #endif
+                    // 立即发起协商
+                    sockaddr_in addr{};
+                    addr.sin_family = AF_INET;
+                    addr.sin_port = htons(policy_config.remote_port);
+                    inet_pton(AF_INET, policy_config.remote_ip.c_str(), &addr.sin_addr);
+
+                    negotiator.startNegotiation(policy_config.policy_id, addr);
                 }
                 // 可添加其它命令处理
             } catch (const std::exception &e) {
@@ -113,12 +146,14 @@ int main() {
             }
         });
 
-
         unixServer.run();
     });
 
+    constexpr int recvTimeoutMs = 0;
+
     // 启动 UDP 数据包接收线程
-    std::thread udpThread([&udpSocket, &negotiator, negotiationTimeoutMs]() {
+    std::thread udpThread([&udpSocket, &negotiator, recvTimeoutMs, epollTimeoutMs]() {
+        TRACE_BLOCK("udpThread total");
         setThreadAffinity(1);
         int epollFd = epoll_create1(0);
         if (epollFd == -1) {
@@ -136,7 +171,7 @@ int main() {
         while (running) {
             constexpr int MAX_EVENTS = 10;
             struct epoll_event events[MAX_EVENTS];
-            int nfds = epoll_wait(epollFd, events, MAX_EVENTS, static_cast<int>(negotiationTimeoutMs));
+            int nfds = epoll_wait(epollFd, events, MAX_EVENTS, epollTimeoutMs);
             if (nfds < 0) {
                 if (errno == EINTR)
                     continue;
@@ -146,12 +181,16 @@ int main() {
             for (int i = 0; i < nfds; ++i) {
                 sockaddr_in srcAddr{};
                 negotio::NegotiationPacket packet;
-                if (udpSocket.recvPacket(packet, srcAddr, static_cast<int>(negotiationTimeoutMs)) ==
+                if (udpSocket.recvPacket(packet, srcAddr, recvTimeoutMs) ==
                     negotio::ErrorCode::SUCCESS) {
 #ifdef DEBUG
                     std::cout << "收到 UDP 数据包，策略ID: " << packet.header.sequence << std::endl;
 #endif
-                    negotiator.handlePacket(packet, srcAddr);
+                    // ✅ 加 TRACE_BLOCK 观察 handlePacket 是否耗时
+                    std::thread([packet, srcAddr, &negotiator]() {
+                        TRACE_BLOCK("recvPacket+handlePacket");
+                        negotiator.handlePacket(packet, srcAddr);
+                    }).detach();
                 }
             }
         }

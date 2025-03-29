@@ -50,11 +50,11 @@ TEST(UdpSocketTest, SendAndReceivePacket) {
     // 启动接收线程
     std::thread recvThread([&]() {
         sockaddr_in from{};
-        ErrorCode result = receiver.recvPacket(inPacket, from, 1000);
+        ErrorCode result = receiver.recvPacket(inPacket, from, 10);
         EXPECT_EQ(result, ErrorCode::SUCCESS);
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 等待接收线程就绪
+    std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 等待接收线程就绪
 
     // 发送数据包
     ErrorCode sendResult = sender.sendPacket(outPacket, recvAddr);
