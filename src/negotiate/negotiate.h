@@ -92,6 +92,15 @@ namespace negotio {
         static size_t bucketIndex(uint32_t policy_id) {
             return policy_id % NUM_BUCKETS;
         }
+
+        /**
+     * @brief 构造数据包
+     * @param type 数据包类型
+     * @param policy_id 策略ID
+     * @param payloadData payload 数据（可以为空）
+     * @return 构造好的 NegotiationPacket
+     */
+        static NegotiationPacket createPacket(PacketType type, uint32_t policy_id, const std::vector<uint8_t>& payloadData);
     };
 } // namespace negotio
 

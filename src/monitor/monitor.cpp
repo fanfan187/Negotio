@@ -1,7 +1,6 @@
 /**
- * @author fanfan187
- * @version v1.0.0
- * @since v1.0.0
+ * @file monitor.cpp
+ * @brief 监控模块实现
  */
 
 #include "monitor.h"
@@ -15,17 +14,16 @@ namespace negotio {
 
     Monitor::~Monitor() {
         stop();
+        if (logFile.is_open()) {
+            logFile.close();
+        }
     }
 
     void Monitor::start() {
         running = true;
-        monitorThread = std::thread(&Monitor::monitorLoop, this);
-
+        // 打开日志文件，但不立即写入统计数据
         logFile.open("monitor_log.txt", std::ios::app);
-        if (logFile.is_open()) {
-            logFile << "监控统计:总协商数:" << totalNegotiations << ", 成功协商数:" <<
-                successfulNegotiations << ", 平均延迟:" << totalLatencyMs / successfulNegotiations << " ms" << std::endl;
-        }
+        monitorThread = std::thread(&Monitor::monitorLoop, this);
     }
 
     void Monitor::stop() {
@@ -43,7 +41,8 @@ namespace negotio {
         }
     }
 
-    void Monitor::monitorLoop() const {
+    // 移除 const 限定符，以便修改 logFile
+    void Monitor::monitorLoop() {
         using namespace std::chrono_literals;
         while (running) {
             std::this_thread::sleep_for(1s);
@@ -51,12 +50,23 @@ namespace negotio {
             uint32_t success = successfulNegotiations.load();
             uint32_t latency = totalLatencyMs.load();
             double avgLatency = success > 0 ? static_cast<double>(latency) / success : 0;
-            std::cout << "监控统计: 总协商数: " << total
-                    << ", 成功协商数: " << success
-                    << ", 平均延迟: " << avgLatency << " ms"
-                    << std::endl;
+
+            if (logFile.is_open()) {
+                if (success > 0) {
+                    logFile << "监控统计: 总协商数: " << total
+                            << ", 成功协商数: " << success
+                            << ", 平均延迟: " << avgLatency << " ms" << std::endl;
+                } else {
+                    logFile << "监控统计: 总协商数: " << total
+                            << ", 尚无成功协商数据" << std::endl;
+                }
+                logFile.flush();
+            }
+#ifdef DEBUG
+            std::cout << "调试日志: 总协商数: " << total
+                      << ", 成功协商数: " << success
+                      << ", 平均延迟: " << avgLatency << " ms" << std::endl;
+#endif
         }
     }
-
 } // namespace negotio
-

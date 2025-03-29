@@ -3,6 +3,9 @@ project(Negotio)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# 开启调试日志：定义 DEBUG 宏和 ENABLE_DEBUG=1
+add_definitions(-DENABLE_DEBUG=1 -DDEBUG)
+
 # 如果是 Windows 平台，则手动设置 OpenSSL 路径
 if (WIN32)
     set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
@@ -35,7 +38,6 @@ add_executable(Negotio
         include/json_support.h
 )
 
-# 使用目标级设置添加头文件目录（例如 external 目录也可以这样添加）
 target_include_directories(Negotio PRIVATE ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/external)
 

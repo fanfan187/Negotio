@@ -49,7 +49,7 @@ namespace negotio {
         std::atomic<uint32_t> successfulNegotiations;
         std::atomic<uint32_t> totalLatencyMs; // 累计延迟（毫秒）
 
-        void monitorLoop() const;
+        void monitorLoop();
     };
 
 } // namespace negotio

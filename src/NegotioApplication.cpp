@@ -5,9 +5,9 @@
 #include <csignal>
 #include <chrono>
 #include <cstdlib>
-#include <sys/mman.h>       // mlockall
-#include <pthread.h>        // pthread_setaffinity_np
-#include <sched.h>          // CPU_SET
+#include <sys/mman.h>
+#include <pthread.h>
+#include <sched.h>
 
 #include "unixsocket/unixsocket.h"
 #include "udp/udp.h"
@@ -19,8 +19,7 @@
 #include <sys/epoll.h>
 #include <cerrno>
 #include "json_support.h"
-
-#include "common.h" // 包含 ENABLE_DEBUG 和 DEBUG_LOG 宏定义
+#include "common.h"
 
 using json = nlohmann::json;
 using namespace std::chrono;
@@ -31,7 +30,6 @@ void signalHandler(int signum) {
     running = false;
 }
 
-// 辅助函数：设置当前线程 CPU 亲和性到指定 CPU 核心
 void setThreadAffinity(int cpu_id) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -41,7 +39,6 @@ void setThreadAffinity(int cpu_id) {
 }
 
 int main() {
-    // 锁定所有内存，防止交换
     if (mlockall(MCL_CURRENT | MCL_FUTURE) == -1) {
         std::cerr << "mlockall 失败" << std::endl;
     }
@@ -65,15 +62,14 @@ int main() {
     uint16_t udpPort = config["network"]["udp_port"].get<uint16_t>();
     std::string unixSocketPath = config["network"]["unix_socket_path"].get<std::string>();
     uint32_t negotiationTimeoutMs = config["negotiation"]["timeout_ms"].get<uint32_t>();
-    // maxStrategies 未被使用，这里暂不需要
 
     negotio::UdpSocket udpSocket;
     if (udpSocket.init(udpPort) != negotio::ErrorCode::SUCCESS) {
         std::cerr << "UDP 模块初始化失败" << std::endl;
         return 1;
     }
-#if ENABLE_DEBUG
-    DEBUG_LOG("UDP 模块初始化成功，端口: " << udpPort);
+#ifdef DEBUG
+    std::cout << "UDP 模块初始化成功，端口: " << udpPort << std::endl;
 #endif
 
     negotio::UnixSocketServer unixServer;
@@ -81,8 +77,8 @@ int main() {
         std::cerr << "Unix Socket 模块初始化失败" << std::endl;
         return 1;
     }
-#if ENABLE_DEBUG
-    DEBUG_LOG("Unix Socket 模块初始化成功，路径: " << unixSocketPath);
+#ifdef DEBUG
+    std::cout << "Unix Socket 模块初始化成功，路径: " << unixSocketPath << std::endl;
 #endif
 
     negotio::PolicyManager policyManager;
@@ -95,33 +91,33 @@ int main() {
     std::thread unixThread([&unixServer, &policyManager]() {
         setThreadAffinity(0);
         unixServer.setCommandHandler([&](const std::string &cmd) {
-#if ENABLE_DEBUG
-            DEBUG_LOG("收到 Unix 命令: " << cmd);
+#ifdef DEBUG
+    std::cout << "收到 Unix 命令: " << cmd << std::endl;
 #endif
             try {
                 auto j = json::parse(cmd);
                 std::string action = j["action"].get<std::string>();
                 if (action == "add") {
                     auto policy_config = j["policy"].get<negotio::PolicyConfig>();
-                    if (policyManager.addPolicy(policy_config)) {
-#if ENABLE_DEBUG
-                        DEBUG_LOG("策略添加成功，策略ID: " << policy_config.policy_id);
+                    bool success = policyManager.addPolicy(policy_config);
+#ifdef DEBUG
+            DEBUG_LOG("策略" << (success ? "添加成功" : "添加失败")
+                      << "，策略ID: " << policy_config.policy_id);
+#else
+                    (void) success; // 引用 success 以避免未使用警告
 #endif
-                    } else {
-#if ENABLE_DEBUG
-                        DEBUG_LOG("策略添加失败，策略ID: " << policy_config.policy_id);
-#endif
-                    }
                 }
-                // 其它命令...
+                // 可添加其它命令处理
             } catch (const std::exception &e) {
                 std::cerr << "命令解析错误: " << e.what() << std::endl;
             }
         });
+
+
         unixServer.run();
     });
 
-    // 启动 UDP 数据包接收线程（使用 epoll 事件驱动）
+    // 启动 UDP 数据包接收线程
     std::thread udpThread([&udpSocket, &negotiator, negotiationTimeoutMs]() {
         setThreadAffinity(1);
         int epollFd = epoll_create1(0);
@@ -137,7 +133,6 @@ int main() {
             close(epollFd);
             return;
         }
-
         while (running) {
             constexpr int MAX_EVENTS = 10;
             struct epoll_event events[MAX_EVENTS];
@@ -153,6 +148,9 @@ int main() {
                 negotio::NegotiationPacket packet;
                 if (udpSocket.recvPacket(packet, srcAddr, static_cast<int>(negotiationTimeoutMs)) ==
                     negotio::ErrorCode::SUCCESS) {
+#ifdef DEBUG
+                    std::cout << "收到 UDP 数据包，策略ID: " << packet.header.sequence << std::endl;
+#endif
                     negotiator.handlePacket(packet, srcAddr);
                 }
             }
