@@ -111,8 +111,8 @@ int main() {
     for (auto &t : threads) {
         t.join();
     }
-    auto endTime = steady_clock::now();
-    auto totalMs = duration_cast<milliseconds>(endTime - startTime).count();
+    const auto endTime = steady_clock::now();
+    const auto totalMs = duration_cast<milliseconds>(endTime - startTime).count();
     std::cout << "总协商次数: " << totalSessions
               << ", 总耗时: " << totalMs << " ms, 平均每次协商耗时: "
               << static_cast<double>(totalMs) / totalSessions << " ms" << std::endl;

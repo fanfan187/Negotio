@@ -1,4 +1,8 @@
-// tests/unit_test/hash_test.cpp
+/**
+* @author fanfan187
+ * @version v1.0.0
+ * @since v1.0.0
+ */
 
 #include <gtest/gtest.h>
 #include "../src/hash/hash.h"
@@ -19,11 +23,11 @@ std::string vectorToHex(const std::vector<uint8_t>& vec) {
 TEST(HashTest, SHA256ByteData) {
     // 测试数据：字符串 "test"
     std::vector<uint8_t> data = {'t', 'e', 's', 't'};
-    auto hash = CalculateSHA256(data);
+    const auto hash = CalculateSHA256(data);
     std::string hashHex = vectorToHex(hash);
     // 预期结果可以通过在线工具或 OpenSSL 命令生成，例如：
     // echo -n "test" | openssl dgst -sha256
-    std::string expected = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    const std::string expected = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
     EXPECT_EQ(hashHex, expected);
 }
 
@@ -33,8 +37,8 @@ TEST(HashTest, SHA256Uint32Data) {
     // 注意字节序问题，确保输入数据与上面的字节数组相同
     // 假设本机为小端模式，下列表示与 "test" 等效的 uint32_t 值
     std::vector<uint32_t> data = {0x74736574}; // 't' 'e' 's' 't'
-    auto hash = CalculateSHA256(data);
-    std::string hashHex = vectorToHex(hash);
-    std::string expected = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    const auto hash = CalculateSHA256(data);
+    const std::string hashHex = vectorToHex(hash);
+    const std::string expected = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
     EXPECT_EQ(hashHex, expected);
 }

@@ -17,8 +17,6 @@
 
 #include <cstdint>
 #include <vector>
-#include <string>
-#include "common.h"
 
 /**
  * @brief 计算字节数据的 SHA256 哈希值。
