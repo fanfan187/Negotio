@@ -1,27 +1,45 @@
 /**
-* @file hash.h
- * @brief 哈希计算模块
- * @details 实现基于 SHA256 的哈希计算功能,用于生成协商密钥
+ * @file hash.h
+ * @brief 提供 SHA256 哈希计算功能。
+ *
+ * 该文件声明了用于计算 SHA256 哈希值的函数。支持对字节数据和 32 位无符号整数数据的计算，
+ * 输出的哈希值均为 32 字节。该模块主要用于生成协商密钥时的数据完整性校验。
  *
  * @author fanfan187
- * @version v1.0.0
- * @since v1.0.0
+ * @version 1.0.0
+ * @since 1.0.0
  */
+
 #pragma once
 
-#include <cstdint>
 #ifndef NEGOTIO_HASH_H
 #define NEGOTIO_HASH_H
 
+#include <cstdint>
 #include <vector>
 #include <string>
 #include "common.h"
 
-// 计算输入字节数据的 SHA256 哈希值, 返回 32 字节的哈希值
+/**
+ * @brief 计算字节数据的 SHA256 哈希值。
+ *
+ * 该函数接收一个包含字节数据的 vector，对数据进行 SHA256 哈希计算，
+ * 并返回一个包含 32 字节结果的 vector。
+ *
+ * @param data 包含待计算哈希的字节数据的 vector。
+ * @return std::vector<uint8_t> 长度为 32 字节的 SHA256 哈希值。
+ */
 std::vector<uint8_t> CalculateSHA256(const std::vector<uint8_t>& data);
 
-// 重载:计算以 uint32_t 列表表示的二进制数据的 SHA256 哈希值, 返回 32 字节的哈希值
+/**
+ * @brief 计算 32 位无符号整数数据的 SHA256 哈希值。
+ *
+ * 此函数为重载版本，接收一个包含 32 位无符号整数的 vector，对其进行 SHA256 哈希计算，
+ * 并返回一个包含 32 字节结果的 vector。
+ *
+ * @param data 包含待计算哈希的 32 位无符号整数数据的 vector。
+ * @return std::vector<uint8_t> 长度为 32 字节的 SHA256 哈希值。
+ */
 std::vector<uint8_t> CalculateSHA256(const std::vector<uint32_t>& data);
 
 #endif // NEGOTIO_HASH_H
-

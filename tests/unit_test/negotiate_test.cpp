@@ -4,88 +4,130 @@
  * @since v1.0.0
  */
 
-// tests/unit_test/negotiate_test.cpp
+#pragma once
+#ifndef NEGOTIO_NEGOTIATE_H
+#define NEGOTIO_NEGOTIATE_H
 
-#include <gtest/gtest.h>
-#include "../../src/negotiate/negotiate.h"
-#include "../../src/monitor/monitor.h"
+#include "common.h"
+#include <vector>
+#include <unordered_map>
+#include <mutex>
+#include <optional>
+#include <chrono>
 #include <netinet/in.h>
-#include <cstring>
+#include <array>
+#include <functional>
 
-using namespace negotio;
+namespace negotio {
+    // 协商状态定义
+    enum class NegotiateState {
+        INIT,
+        WAIT_R2,
+        WAIT_CONFIRM,
+        DONE,
+        FAILED
+    };
 
-// 验证随机数生成器返回 32 字节的数据
-TEST(NegotiatorTest, GenerateRandomData) {
-    auto data = Negotiator::generateRandomData(RANDOM_NUMBER);
-    EXPECT_EQ(data.size(), RANDOM_NUMBER);
-}
+    // 单个协商会话结构体
+    struct NegotiationSession {
+        uint32_t policy_id; ///< 策略ID，用作会话标识
+        NegotiateState state; ///< 当前协商状态
+        std::vector<uint8_t> random1; ///< 发起方随机数 (32字节)
+        std::vector<uint8_t> random2; ///< 响应方随机数 (32字节)
+        std::vector<uint8_t> key; ///< 计算得到的共享密钥 (32字节)
+        std::chrono::steady_clock::time_point startTime; ///< 协商开始时间
+    };
 
-// 验证 computeKey 正确拼接并计算 SHA256
-TEST(NegotiatorTest, ComputeKey) {
-    std::vector<uint8_t> r1(RANDOM_NUMBER, 0x11); // 32字节，全为0x11
-    std::vector<uint8_t> r2(RANDOM_NUMBER, 0x22); // 32字节，全为0x22
+    class Monitor;
 
-    auto key = Negotiator::computeKey(r1, r2);
-    EXPECT_EQ(key.size(), KEY_SIZE);
-}
+    // 会话桶结构体，用于分桶管理会话，降低锁竞争
+    struct SessionBucket {
+        std::unordered_map<uint32_t, NegotiationSession> sessions;
+        std::mutex mtx;
+    };
 
-// 测试 startNegotiation 成功并写入桶中
-TEST(NegotiatorTest, StartNegotiation) {
-    Negotiator negotiator;
-    sockaddr_in dummyAddr{};
-    uint32_t policy_id = 123;
+    // 定义分桶数量
+    static const size_t NUM_BUCKETS = 16;
 
-    auto result = negotiator.startNegotiation(policy_id, dummyAddr);
-    EXPECT_EQ(result, ErrorCode::SUCCESS);
+    // 定义 UDP 发送器函数类型
+    using UdpSenderFunc = std::function<void(const NegotiationPacket &, const sockaddr_in &)>;
 
-    auto sessionOpt = negotiator.getSession(policy_id);
-    ASSERT_TRUE(sessionOpt.has_value());
-    EXPECT_EQ(sessionOpt->policy_id, policy_id);
-    EXPECT_EQ(sessionOpt->state, NegotiateState::WAIT_R2);
-    EXPECT_EQ(sessionOpt->random1.size(), RANDOM_NUMBER);
-    EXPECT_TRUE(sessionOpt->key.empty()); // 尚未生成密钥
-}
+    class Negotiator {
+    public:
+        Negotiator();
 
-// 模拟协商流程（RANDOM1 -> RANDOM2 -> CONFIRM）
-TEST(NegotiatorTest, FullNegotiationFlow) {
-    Negotiator initiator;
-    Negotiator responder;
-    Monitor monitor;
-    initiator.setMonitor(&monitor);
-    responder.setMonitor(&monitor);
+        ~Negotiator();
 
-    uint32_t policy_id = 456;
-    sockaddr_in dummyAddr{};
+        void setMonitor(Monitor *m);
 
-    // Initiator 发起协商
-    ASSERT_EQ(initiator.startNegotiation(policy_id, dummyAddr), ErrorCode::SUCCESS);
-    auto session1 = initiator.getSession(policy_id);
-    ASSERT_TRUE(session1.has_value());
-    auto r1 = session1->random1;
+        // 定义 UDP 发送器函数类型（重新声明）
+        using UdpSenderFunc = std::function<void(const NegotiationPacket &, const sockaddr_in &)>;
 
-    // responder 处理 RANDOM1
-    NegotiationPacket p1 = Negotiator::createPacket(PacketType::RANDOM1, policy_id, r1);
-    ASSERT_EQ(responder.handlePacket(p1, dummyAddr), ErrorCode::SUCCESS);
-    auto session2 = responder.getSession(policy_id);
-    ASSERT_TRUE(session2.has_value());
-    auto r2 = session2->random2;
+        void setUdpSender(const UdpSenderFunc &sender);
 
-    // initiator 处理 RANDOM2
-    NegotiationPacket p2 = Negotiator::createPacket(PacketType::RANDOM2, policy_id, r2);
-    ASSERT_EQ(initiator.handlePacket(p2, dummyAddr), ErrorCode::SUCCESS);
+        void sendAsync(const NegotiationPacket &packet, const sockaddr_in &peerAddr) const;
 
-    // responder 处理 CONFIRM
-    NegotiationPacket p3 = Negotiator::createPacket(PacketType::CONFIRM, policy_id, {});
-    ASSERT_EQ(responder.handlePacket(p3, dummyAddr), ErrorCode::SUCCESS);
+        /**
+         * @brief 发起协商流程（发起者角色）
+         * @param policy_id 策略ID，同时作为会话标识
+         * @param peerAddr 对端地址（UDP）
+         * @return ErrorCode
+         */
+        ErrorCode startNegotiation(uint32_t policy_id, const sockaddr_in &peerAddr);
 
-    // 检查协商完成状态
-    auto finalSession1 = initiator.getSession(policy_id);
-    ASSERT_TRUE(finalSession1.has_value());
-    EXPECT_EQ(finalSession1->state, NegotiateState::WAIT_CONFIRM);  // 发起方未处理 CONFIRM
+        /**
+         * @brief 处理接收到的数据包（响应或确认）
+         * @param packet 接收到的数据包
+         * @param addr 发送方地址（UDP）
+         * @return ErrorCode
+         */
+        ErrorCode handlePacket(const NegotiationPacket &packet, const sockaddr_in &addr);
 
-    auto finalSession2 = responder.getSession(policy_id);
-    ASSERT_TRUE(finalSession2.has_value());
-    EXPECT_EQ(finalSession2->state, NegotiateState::DONE);
-    EXPECT_EQ(finalSession2->key.size(), KEY_SIZE);
-}
+        /**
+         * @brief 获取指定会话信息（只读）
+         * @param policy_id 策略ID
+         * @return 若存在返回会话，否则返回 std::nullopt
+         */
+        std::optional<NegotiationSession> getSession(uint32_t policy_id);
 
+        // 将 generateRandomData 从 private 移到 public，以便性能测试中调用
+        static std::vector<uint8_t> generateRandomData(size_t size);
+
+        // 计算共享密钥：SHA256(random1 || random2)
+        static std::vector<uint8_t> computeKey(const std::vector<uint8_t> &random1,
+                                               const std::vector<uint8_t> &random2);
+
+#ifdef UNIT_TEST
+    public:
+#else
+
+    private:
+#endif
+        /**
+         * @brief 构造数据包
+         * @param type 数据包类型
+         * @param policy_id 策略ID
+         * @param payloadData payload 数据（可以为空）
+         * @return 构造好的 NegotiationPacket
+         */
+        static NegotiationPacket createPacket(PacketType type, uint32_t policy_id,
+                                              const std::vector<uint8_t> &payloadData);
+
+    private:
+        // 分桶管理会话，每个桶独立加锁，减少锁竞争
+        std::array<SessionBucket, NUM_BUCKETS> sessionBuckets;
+        Monitor *monitor;
+        UdpSenderFunc udpSender; ///< UDP 发送回调函数
+
+        /**
+         * @brief 根据 policy_id 获取对应的桶索引
+         * @param policy_id 策略ID
+         * @return 桶索引
+         */
+        static size_t bucketIndex(uint32_t policy_id) {
+            return policy_id % NUM_BUCKETS;
+        }
+    };
+} // namespace negotio
+
+#endif // NEGOTIO_NEGOTIATE_H

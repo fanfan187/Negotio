@@ -64,12 +64,18 @@ namespace negotio {
     }
 
     ErrorCode Negotiator::startNegotiation(uint32_t policy_id, const sockaddr_in &peerAddr) {
+        // 过滤无效的 policy_id
+        if (policy_id == 0) {
+            std::cout << "[TRACE] 忽略无效 policy_id: 0 (startNegotiation)" << std::endl;
+            return ErrorCode::INVALID_PARAM;
+        }
         NegotiationSession session;
         session.policy_id = policy_id;
         session.state = NegotiateState::WAIT_R2;
         session.random1 = generateRandomData(RANDOM_NUMBER);
         if (session.random1.empty()) return ErrorCode::MEMORY_ERROR;
-        session.startTime = std::chrono::steady_clock::now(); {
+        session.startTime = std::chrono::steady_clock::now();
+        {
             const size_t idx = bucketIndex(policy_id);
             std::lock_guard lock(sessionBuckets[idx].mtx);
             sessionBuckets[idx].sessions[policy_id] = session;
@@ -87,6 +93,11 @@ namespace negotio {
 
     ErrorCode Negotiator::handlePacket(const NegotiationPacket &packet, const sockaddr_in &peerAddr) {
         const uint32_t policy_id = packet.header.sequence;
+        // 过滤无效的 policy_id
+        if (policy_id == 0) {
+            std::cout << "[TRACE] 忽略无效 policy_id: 0 (handlePacket)" << std::endl;
+            return ErrorCode::INVALID_PARAM;
+        }
         const auto now = std::chrono::steady_clock::now();
         const size_t idx = bucketIndex(policy_id); // 缓存 sessionBuckets 索引
 
@@ -96,7 +107,7 @@ namespace negotio {
                     // 将锁定范围最小化，锁定后尽快释放
                     std::lock_guard<std::mutex> lock(sessionBuckets[idx].mtx);
                     if (sessionBuckets[idx].sessions.find(policy_id) != sessionBuckets[idx].sessions.end()) {
-                        // 已发起协商的发起方收到误发的R1，忽略
+                        // 已发起协商的发起方收到误发的 RANDOM1，忽略
                         return ErrorCode::SUCCESS;
                     }
                 }
@@ -115,7 +126,8 @@ namespace negotio {
                 session.random1.resize(RANDOM_NUMBER);
                 std::memcpy(session.random1.data(), packet.payload.data(), RANDOM_NUMBER);
                 session.random2 = generateRandomData(RANDOM_NUMBER);
-                session.key = computeKey(session.random1, session.random2); {
+                session.key = computeKey(session.random1, session.random2);
+                {
                     std::lock_guard<std::mutex> lock(sessionBuckets[idx].mtx); // 锁住 sessionBuckets，更新会话信息
                     sessionBuckets[idx].sessions[policy_id] = session;
                 }
@@ -150,11 +162,9 @@ namespace negotio {
 
                 session.state = NegotiateState::DONE;
                 if (monitor) {
-                    uint32_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.startTime).
-                            count();
+                    uint32_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.startTime).count();
                     monitor->recordNegotiation(duration, true);
-                    std::cout << "[TRACE] initiator 协商完成, 耗时: " << duration << "ms, policy_id = " << policy_id <<
-                            std::endl;
+                    std::cout << "[TRACE] initiator 协商完成, 耗时: " << duration << "ms, policy_id = " << policy_id << std::endl;
                 }
 
                 return ErrorCode::SUCCESS;
@@ -169,11 +179,9 @@ namespace negotio {
                 session.state = NegotiateState::DONE;
 
                 if (monitor) {
-                    uint32_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.startTime).
-                            count();
+                    uint32_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.startTime).count();
                     monitor->recordNegotiation(duration, true);
-                    std::cout << "[TRACE] responder 协商完成, 耗时: " << duration << "ms, policy_id = " << policy_id <<
-                            std::endl;
+                    std::cout << "[TRACE] responder 协商完成, 耗时: " << duration << "ms, policy_id = " << policy_id << std::endl;
                 }
 
                 return ErrorCode::SUCCESS;

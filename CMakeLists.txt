@@ -98,6 +98,9 @@ target_include_directories(NegotioUnitTest
         ${CMAKE_SOURCE_DIR}/src
 )
 
+target_compile_definitions(NegotioUnitTest PRIVATE UNIT_TEST)
+
+
 target_link_libraries(NegotioUnitTest
         PRIVATE
         negotiolib
