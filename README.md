@@ -33,8 +33,62 @@ Negotio 是一个基于 UDP 协议和 Unix 套接字的协商程序。程序设�
   工程目录结构清晰，将源码、测试、外部依赖和配置文件分门别类，便于维护与扩展。
 
 ## 文件树
-![img_5.png](directory_tree_1.png)
-![img_4.png](directory_tree_2.png)
+```shell
+Negotio/
+├── README.md               # 项目说明文档
+├── CMakeLists.txt          # 构建配置文件
+│
+├── configs/                # 配置文件
+│   └── config.json
+│
+├── external/               # 外部依赖库
+│   ├── googletest/         # GoogleTest 单元测试库
+│   └── nlohmann/           # JSON 库
+│       └── json.hpp
+│
+├── include/                # 公共头文件
+│   ├── common.h
+│   └── json_support.h
+│
+├── src/                    # 主源代码目录
+│   ├── hash/
+│   │   ├── hash.cpp
+│   │   └── hash.h
+│   ├── monitor/
+│   │   ├── monitor.cpp
+│   │   └── monitor.h
+│   ├── negotiate/
+│   │   ├── negotiate.cpp
+│   │   └── negotiate.h
+│   ├── policy/
+│   │   ├── policy.cpp
+│   │   └── policy.h
+│   ├── udp/
+│   │   ├── udp.cpp
+│   │   └── udp.h
+│   ├── unixsocket/
+│   │   ├── unixsocket.cpp
+│   │   └── unixsocket.h
+│   └── NegotioApplication.cpp  # 项目主程序入口
+│
+├── tests/                    # 测试目录
+│   ├── performance_test.cpp  # 性能测试
+│   ├── utils/                # 测试工具类
+│   │   └── test_util.h
+│   └── unit_test/            # 单元测试代码
+│       ├── hash_test.cpp
+│       ├── monitor_test.cpp
+│       ├── negotiate_test.cpp
+│       ├── policy_test.cpp
+│       ├── udp_test.cpp
+│       └── unixsocket_test.cpp
+│
+└── libs/
+    └── include_paths/
+        ├── path1 -> C:\Users\hou19\AppData\Local\JetBrains\CLion2024.3\.remote\10.1.218.136_22\7e38777c
+        └── path2 -> C:\Users\hou19\AppData\Local\JetBrains\CLion2024.3\.remote\10.1.218.136_22\7e38777c
+```
+        
 ## 开发环境与部署
 
 - **开发平台**：Windows
